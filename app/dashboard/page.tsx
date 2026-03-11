@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { PageCard } from '@/components/pages/PageCard';
 import { AddPageModal } from '@/components/pages/AddPageModal';
 import { EngagementChart } from '@/components/charts/EngagementChart';
@@ -11,8 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BarChart3, TrendingUp, FileText, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { dummyTrackedPages, dummyPosts } from '@/lib/dummyData';
+import { AppLayout } from '../components/AppLayout';
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -24,13 +25,15 @@ export default function DashboardPage() {
     avgEngagement: 0,
   });
   const [recentEngagement, setRecentEngagement] = useState<any[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     checkAuth();
   }, []);
 
   const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    // Bypass authentication with dummy user
+    const user = { id: 'demo-user' };
     
     if (!user) {
       router.push('/');
@@ -38,55 +41,39 @@ export default function DashboardPage() {
     }
 
     setUser(user);
-    await loadDashboardData(user.id);
+    await loadData();
   };
 
-  const loadDashboardData = async (userId: string) => {
-    setLoading(true);
+  const loadData = async () => {
     try {
-      const { data: pages, error } = await supabase
-        .from('tracked_pages')
-        .select('*')
-        .eq('user_id', userId)
-        .order('added_at', { ascending: false });
+      // Simulate loading delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Use dummy data
+      setTrackedPages(dummyTrackedPages);
 
-      if (error) throw error;
+      // Calculate stats from dummy data
+      const totalEngagement = dummyPosts.reduce((sum: number, post: any) => 
+        sum + post.likes_count + post.comments_count + post.shares_count, 0
+      );
 
-      setTrackedPages(pages || []);
+      setStats({
+        totalPages: dummyTrackedPages.length,
+        totalPosts: dummyPosts.length,
+        avgEngagement: dummyPosts.length > 0 ? Math.round(totalEngagement / dummyPosts.length) : 0,
+      });
 
-      if (pages && pages.length > 0) {
-        const pageIds = pages.map((p: any) => p.page_id);
-        
-        const { data: posts, error: postsError } = await supabase
-          .from('page_posts')
-          .select('*')
-          .in('page_id', pageIds)
-          .order('created_time', { ascending: false })
-          .limit(100);
+      // Create chart data from recent posts
+      const chartData = dummyPosts.slice(0, 10).reverse().map((post: any, idx: number) => ({
+        name: `Post ${idx + 1}`,
+        likes: post.likes_count,
+        comments: post.comments_count,
+        shares: post.shares_count,
+      }));
 
-        if (!postsError && posts) {
-          const totalEngagement = posts.reduce((sum: number, post: any) => 
-            sum + post.likes_count + post.comments_count + post.shares_count, 0
-          );
-
-          setStats({
-            totalPages: pages.length,
-            totalPosts: posts.length,
-            avgEngagement: posts.length > 0 ? Math.round(totalEngagement / posts.length) : 0,
-          });
-
-          const chartData = posts.slice(0, 10).reverse().map((post: any, idx: number) => ({
-            name: `Post ${idx + 1}`,
-            likes: post.likes_count,
-            comments: post.comments_count,
-            shares: post.shares_count,
-          }));
-
-          setRecentEngagement(chartData);
-        }
-      }
+      setRecentEngagement(chartData);
     } catch (error) {
-      console.error('Error loading dashboard:', error);
+      console.error('Error loading dashboard data:', error);
       toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -98,26 +85,23 @@ export default function DashboardPage() {
     
     setSyncing(true);
     try {
-      const response = await fetch('/api/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        toast.success('Pages synced successfully!');
-        await loadDashboardData(user.id);
-      } else {
-        throw new Error(data.error);
-      }
+      // Simulate sync
+      toast.loading('Syncing pages...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      toast.success('All pages synced successfully');
+      await loadData();
     } catch (error) {
       console.error('Sync error:', error);
       toast.error('Failed to sync pages');
     } finally {
       setSyncing(false);
     }
+  };
+
+  const onPageAdded = () => {
+    loadData();
+    setShowAddModal(false);
+    toast.success('Page added successfully');
   };
 
   if (loading) {
@@ -149,7 +133,7 @@ export default function DashboardPage() {
           {user && (
             <AddPageModal 
               userId={user.id} 
-              onPageAdded={() => loadDashboardData(user.id)}
+              onPageAdded={onPageAdded}
             />
           )}
         </div>
@@ -203,7 +187,7 @@ export default function DashboardPage() {
             {user && (
               <AddPageModal 
                 userId={user.id} 
-                onPageAdded={() => loadDashboardData(user.id)}
+                onPageAdded={onPageAdded}
               />
             )}
           </div>
@@ -219,5 +203,13 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <AppLayout>
+      <DashboardContent />
+    </AppLayout>
   );
 }

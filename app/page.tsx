@@ -2,7 +2,6 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, TrendingUp, Users, MessageCircle, Facebook } from 'lucide-react';
@@ -12,40 +11,23 @@ import { toast } from 'sonner';
 function HomePageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    checkAuth();
+    setMounted(true);
+    // Bypass authentication and go directly to dashboard
+    setTimeout(() => {
+      router.push('/dashboard');
+    }, 1000);
   }, []);
 
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (user) {
-      router.push('/dashboard');
-    } else {
-      setLoading(false);
-    }
-  };
-
-  const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'facebook',
-      options: {
-        scopes: 'pages_read_engagement,pages_show_list',
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      console.error('Login error:', error);
-      toast.error('Failed to initiate login');
-    }
-  };
-
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-lg text-gray-600">Loading NBMC Analytics...</p>
+        </div>
       </div>
     );
   }
@@ -66,22 +48,14 @@ function HomePageContent() {
           <Card className="shadow-xl">
             <CardContent className="p-12">
               <div className="text-center space-y-6">
-                <h2 className="text-3xl font-semibold">Get Started with NBMC Analytics</h2>
+                <h2 className="text-3xl font-semibold">Welcome to NBMC Analytics</h2>
                 <p className="text-lg text-muted-foreground">
-                  Connect with Facebook to start tracking any public Facebook Page
+                  Redirecting to your dashboard with sample data...
                 </p>
-                <Button 
-                  size="lg" 
-                  onClick={handleLogin}
-                  className="bg-[#1877F2] hover:bg-[#166FE5] text-white px-8 py-6 text-lg"
-                >
-                  <Facebook className="w-5 h-5 mr-2" />
-                  Continue with Facebook
-                </Button>
                 <div className="pt-4">
-                  <Link href="/demo">
-                    <Button variant="outline" size="lg">
-                      View Demo
+                  <Link href="/dashboard">
+                    <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg">
+                      Go to Dashboard
                     </Button>
                   </Link>
                 </div>
@@ -172,6 +146,11 @@ function HomePageContent() {
 
         <footer className="mt-16 text-center text-muted-foreground">
           <p>&copy; 2024 NBMC Analytics. All rights reserved.</p>
+          <div className="mt-2 space-x-4">
+            <Link href="/privacy" className="hover:text-blue-600 transition-colors">
+              Privacy Policy
+            </Link>
+          </div>
         </footer>
       </div>
     </div>
@@ -180,13 +159,20 @@ function HomePageContent() {
 
 function SearchParamsHandler() {
   const searchParams = useSearchParams();
+  const [mounted, setMounted] = useState(false);
   
   useEffect(() => {
-    const error = searchParams.get('error');
-    if (error) {
-      toast.error('Authentication failed. Please try again.');
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      const error = searchParams.get('error');
+      if (error) {
+        toast.error('Authentication failed. Please try again.');
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, mounted]);
 
   return null;
 }

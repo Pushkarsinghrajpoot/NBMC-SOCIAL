@@ -19,22 +19,12 @@ export function Navigation() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    checkUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
+    // Bypass authentication with dummy user
+    setUser({ id: 'demo-user', email: 'demo@example.com' });
   }, []);
 
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUser(user);
-  };
-
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    // Bypass auth - just redirect to home
     router.push('/');
   };
 
@@ -43,33 +33,84 @@ export function Navigation() {
   }
 
   if (!user) {
-    return null;
+    return <div className="h-16 border-b"></div>;
   }
 
   return (
     <nav className="border-b bg-white dark:bg-gray-950">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-6">
             <Link href="/dashboard" className="flex items-center gap-2 font-bold text-xl">
               <BarChart3 className="w-6 h-6 text-blue-600" />
               <span>NBMC Analytics</span>
             </Link>
-            
-            <div className="hidden md:flex items-center gap-4">
-              <Link href="/dashboard">
-                <Button variant={pathname === '/dashboard' ? 'default' : 'ghost'}>
-                  <Home className="w-4 h-4 mr-2" />
-                  Dashboard
-                </Button>
+            <nav className="hidden md:flex items-center gap-6">
+              <Link 
+                href="/dashboard" 
+                className={`text-sm font-medium transition-colors hover:text-blue-600 ${
+                  pathname === '/dashboard' ? 'text-blue-600' : 'text-muted-foreground'
+                }`}
+              >
+                Dashboard
               </Link>
-              <Link href="/compare">
-                <Button variant={pathname === '/compare' ? 'default' : 'ghost'}>
-                  <GitCompare className="w-4 h-4 mr-2" />
-                  Compare
-                </Button>
+              <Link 
+                href="/analytics" 
+                className={`text-sm font-medium transition-colors hover:text-blue-600 ${
+                  pathname === '/analytics' ? 'text-blue-600' : 'text-muted-foreground'
+                }`}
+              >
+                Analytics
               </Link>
-            </div>
+              <Link 
+                href="/insights" 
+                className={`text-sm font-medium transition-colors hover:text-blue-600 ${
+                  pathname === '/insights' ? 'text-blue-600' : 'text-muted-foreground'
+                }`}
+              >
+                Insights
+              </Link>
+              <Link 
+                href="/reports" 
+                className={`text-sm font-medium transition-colors hover:text-blue-600 ${
+                  pathname === '/reports' ? 'text-blue-600' : 'text-muted-foreground'
+                }`}
+              >
+                Reports
+              </Link>
+              <Link 
+                href="/monitoring" 
+                className={`text-sm font-medium transition-colors hover:text-blue-600 ${
+                  pathname === '/monitoring' ? 'text-blue-600' : 'text-muted-foreground'
+                }`}
+              >
+                Monitor
+              </Link>
+              <Link 
+                href="/compare" 
+                className={`text-sm font-medium transition-colors hover:text-blue-600 ${
+                  pathname === '/compare' ? 'text-blue-600' : 'text-muted-foreground'
+                }`}
+              >
+                Compare
+              </Link>
+              <Link 
+                href="/settings" 
+                className={`text-sm font-medium transition-colors hover:text-blue-600 ${
+                  pathname === '/settings' ? 'text-blue-600' : 'text-muted-foreground'
+                }`}
+              >
+                Settings
+              </Link>
+              <Link 
+                href="/privacy" 
+                className={`text-sm font-medium transition-colors hover:text-blue-600 ${
+                  pathname === '/privacy' ? 'text-blue-600' : 'text-muted-foreground'
+                }`}
+              >
+                Privacy
+              </Link>
+            </nav>
           </div>
 
           <DropdownMenu>

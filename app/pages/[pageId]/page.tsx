@@ -1,86 +1,68 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { PostFeed } from '@/components/posts/PostFeed';
 import { CommentPanel } from '@/components/posts/CommentPanel';
 import { EngagementChart } from '@/components/charts/EngagementChart';
 import { FollowerGrowthChart } from '@/components/charts/FollowerGrowthChart';
 import { SentimentPie } from '@/components/charts/SentimentPie';
-import { ArrowLeft, Users, TrendingUp } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Users, MessageCircle, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
+import { dummyTrackedPages, dummyPosts, dummyComments, dummyInsights } from '@/lib/dummyData';
+import { AppLayout } from '../../components/AppLayout';
 
-interface PageDetailProps {
-  params: Promise<{ pageId: string }>;
-}
-
-export default function PageDetail({ params }: PageDetailProps) {
-  const resolvedParams = use(params);
+function PageDetailContent() {
+  const params = useParams();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [pageInfo, setPageInfo] = useState<any>(null);
+  const resolvedParams = params as { pageId: string };
+  const [page, setPage] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
   const [insights, setInsights] = useState<any[]>([]);
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [commentPanelOpen, setCommentPanelOpen] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadPageData();
+    if (resolvedParams.pageId) {
+      loadPageData();
+    }
   }, [resolvedParams.pageId]);
 
   const loadPageData = async () => {
-    setLoading(true);
     try {
-      const { data: page, error: pageError } = await supabase
-        .from('tracked_pages')
-        .select('*')
-        .eq('page_id', resolvedParams.pageId)
-        .single();
+      setLoading(true);
 
-      if (pageError) throw pageError;
-      setPageInfo(page);
+      // Simulate loading delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const { data: postsData, error: postsError } = await supabase
-        .from('page_posts')
-        .select('*')
-        .eq('page_id', resolvedParams.pageId)
-        .order('created_time', { ascending: false })
-        .limit(20);
-
-      if (!postsError) {
-        setPosts(postsData || []);
+      // Load page details from dummy data
+      const pageData = dummyTrackedPages.find(p => p.page_id === resolvedParams.pageId);
+      if (!pageData) {
+        toast.error('Page not found');
+        router.push('/dashboard');
+        return;
       }
+      setPage(pageData);
 
-      const postIds = postsData?.map((p: any) => p.post_id) || [];
-      if (postIds.length > 0) {
-        const { data: commentsData, error: commentsError } = await supabase
-          .from('post_comments')
-          .select('*')
-          .in('post_id', postIds)
-          .order('created_time', { ascending: false });
+      // Load posts from dummy data
+      const pagePosts = dummyPosts.filter(p => p.page_id === resolvedParams.pageId);
+      setPosts(pagePosts);
 
-        if (!commentsError) {
-          setComments(commentsData || []);
-        }
-      }
+      // Load comments from dummy data
+      const postIds = pagePosts.map((p: any) => p.post_id);
+      const pageComments = dummyComments.filter(c => postIds.includes(c.post_id));
+      setComments(pageComments);
 
-      const { data: insightsData, error: insightsError } = await supabase
-        .from('page_insights')
-        .select('*')
-        .eq('page_id', resolvedParams.pageId)
-        .order('recorded_date', { ascending: true })
-        .limit(30);
-
-      if (!insightsError) {
-        setInsights(insightsData || []);
-      }
+      // Load insights from dummy data
+      const pageInsights = dummyInsights.filter(i => i.page_id === resolvedParams.pageId);
+      setInsights(pageInsights);
     } catch (error) {
       console.error('Error loading page data:', error);
       toast.error('Failed to load page data');
@@ -129,7 +111,7 @@ export default function PageDetail({ params }: PageDetailProps) {
     );
   }
 
-  if (!pageInfo) {
+  if (!page) {
     return (
       <div className="container mx-auto py-8 px-4">
         <p>Page not found</p>
@@ -145,22 +127,22 @@ export default function PageDetail({ params }: PageDetailProps) {
       </Button>
 
       <div className="flex items-start gap-6 mb-8">
-        {pageInfo.profile_picture && (
+        {page.profile_picture && (
           <img 
-            src={pageInfo.profile_picture} 
-            alt={pageInfo.page_name}
+            src={page.profile_picture} 
+            alt={page.page_name}
             className="w-24 h-24 rounded-full object-cover"
           />
         )}
         <div className="flex-1">
-          <h1 className="text-4xl font-bold mb-2">{pageInfo.page_name}</h1>
-          {pageInfo.page_category && (
-            <Badge variant="secondary" className="mb-4">{pageInfo.page_category}</Badge>
+          <h1 className="text-4xl font-bold mb-2">{page.page_name}</h1>
+          {page.page_category && (
+            <Badge variant="secondary" className="mb-4">{page.page_category}</Badge>
           )}
           <div className="flex gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4" />
-              <span>{pageInfo.followers_count.toLocaleString()} followers</span>
+              <span>{page.followers_count.toLocaleString()} followers</span>
             </div>
           </div>
         </div>
@@ -271,8 +253,8 @@ export default function PageDetail({ params }: PageDetailProps) {
               <div>
                 <p className="text-sm text-muted-foreground">Engagement Rate</p>
                 <p className="text-2xl font-bold">
-                  {pageInfo.followers_count > 0 && posts.length > 0
-                    ? ((posts.reduce((sum, p) => sum + p.likes_count + p.comments_count + p.shares_count, 0) / posts.length / pageInfo.followers_count) * 100).toFixed(2)
+                  {page.followers_count > 0 && posts.length > 0
+                    ? ((posts.reduce((sum, p) => sum + p.likes_count + p.comments_count + p.shares_count, 0) / posts.length / page.followers_count) * 100).toFixed(2)
                     : 0
                   }%
                 </p>
@@ -288,5 +270,13 @@ export default function PageDetail({ params }: PageDetailProps) {
         postId={selectedPostId}
       />
     </div>
+  );
+}
+
+export default function PageDetail() {
+  return (
+    <AppLayout>
+      <PageDetailContent />
+    </AppLayout>
   );
 }

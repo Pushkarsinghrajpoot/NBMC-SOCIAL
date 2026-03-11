@@ -2,60 +2,41 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { CompareTable } from '@/components/compare/CompareTable';
 import { CompareChart } from '@/components/charts/CompareChart';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Trophy } from 'lucide-react';
+import { BarChart3, Trophy, Users, MessageCircle, TrendingUp, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { dummyTrackedPages, dummyPosts, dummyInsights } from '@/lib/dummyData';
+import { AppLayout } from '../components/AppLayout';
 
-export default function ComparePage() {
+function CompareContent() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [trackedPages, setTrackedPages] = useState<any[]>([]);
   const [selectedPages, setSelectedPages] = useState<string[]>([]);
-  const [compareData, setCompareData] = useState<any>(null);
+  const [compareData, setCompareData] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [bestPerformer, setBestPerformer] = useState<any>(null);
 
   useEffect(() => {
-    checkAuth();
+    loadPages();
   }, []);
 
-  useEffect(() => {
-    if (selectedPages.length > 0) {
-      loadCompareData();
-    }
-  }, [selectedPages]);
-
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      router.push('/');
-      return;
-    }
-
-    setUser(user);
-    await loadPages(user.id);
-  };
-
-  const loadPages = async (userId: string) => {
-    setLoading(true);
+  const loadPages = async () => {
     try {
-      const { data: pages, error } = await supabase
-        .from('tracked_pages')
-        .select('*')
-        .eq('user_id', userId);
-
-      if (error) throw error;
-
-      setTrackedPages(pages || []);
+      // Simulate loading delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      if (pages && pages.length >= 2) {
-        setSelectedPages(pages.slice(0, 3).map((p: any) => p.page_id));
+      // Use dummy data
+      setTrackedPages(dummyTrackedPages);
+      
+      if (dummyTrackedPages.length >= 2) {
+        setSelectedPages(dummyTrackedPages.slice(0, 3).map((p: any) => p.page_id));
       }
     } catch (error) {
       console.error('Error loading pages:', error);
@@ -65,96 +46,78 @@ export default function ComparePage() {
     }
   };
 
+  useEffect(() => {
+    if (selectedPages.length > 0) {
+      loadCompareData();
+    }
+  }, [selectedPages]);
+
   const loadCompareData = async () => {
+    if (selectedPages.length < 2) return;
+
     try {
-      const metricsPromises = selectedPages.map(async (pageId) => {
-        const page = trackedPages.find(p => p.page_id === pageId);
+      const compareResults = [];
+
+      for (const pageId of selectedPages) {
+        // Get page details from dummy data
+        const page = dummyTrackedPages.find(p => p.page_id === pageId);
         
-        const { data: posts } = await supabase
-          .from('page_posts')
-          .select('*')
-          .eq('page_id', pageId)
-          .order('created_time', { ascending: false });
+        // Get posts from dummy data
+        const posts = dummyPosts.filter(p => p.page_id === pageId);
 
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-        const postsThisWeek = posts?.filter((p: any) => 
+        const postsThisWeek = posts.filter((p: any) => 
           p.created_time && new Date(p.created_time) > oneWeekAgo
-        ) || [];
+        );
 
-        const totalLikes = posts?.reduce((sum: number, p: any) => sum + p.likes_count, 0) || 0;
-        const totalComments = posts?.reduce((sum: number, p: any) => sum + p.comments_count, 0) || 0;
-        const totalEngagement = posts?.reduce((sum: number, p: any) => 
+        const totalLikes = posts.reduce((sum: number, p: any) => sum + p.likes_count, 0);
+        const totalComments = posts.reduce((sum: number, p: any) => sum + p.comments_count, 0);
+        const totalEngagement = posts.reduce((sum: number, p: any) => 
           sum + p.likes_count + p.comments_count + p.shares_count, 0
-        ) || 0;
+        );
 
-        return {
+        compareResults.push({
           pageId,
           pageName: page?.page_name || '',
           followers: page?.followers_count || 0,
           postsThisWeek: postsThisWeek.length,
-          avgLikes: posts && posts.length > 0 ? Math.round(totalLikes / posts.length) : 0,
-          avgComments: posts && posts.length > 0 ? Math.round(totalComments / posts.length) : 0,
-          engagementRate: page?.followers_count && posts && posts.length > 0
-            ? (totalEngagement / posts.length / page.followers_count) * 100
-            : 0,
-        };
+          avgLikes: posts.length > 0 ? Math.round(totalLikes / posts.length) : 0,
+          avgComments: posts.length > 0 ? Math.round(totalComments / posts.length) : 0,
+          engagementRate: page?.followers_count && posts.length > 0 
+            ? parseFloat(((totalEngagement / posts.length / page.followers_count) * 100).toFixed(2))
+            : 0
+        });
+      }
+
+      setCompareData(compareResults);
+
+      // Find best performer
+      const best = compareResults.reduce((best, current) => {
+        return current.engagementRate > best.engagementRate ? current : best;
       });
 
-      const metrics = await Promise.all(metricsPromises);
+      setBestPerformer(best);
 
-      const insightsPromises = selectedPages.map(async (pageId) => {
-        const { data: insights } = await supabase
-          .from('page_insights')
-          .select('*')
-          .eq('page_id', pageId)
-          .order('recorded_date', { ascending: true })
-          .limit(30);
-
-        return { pageId, insights: insights || [] };
-      });
-
-      const insightsData = await Promise.all(insightsPromises);
-
-      const allDates = new Set<string>();
-      insightsData.forEach(({ insights }) => {
+      // Load chart data
+      const chartResults: any[] = [];
+      for (const pageId of selectedPages) {
+        const insights = dummyInsights.filter(i => i.page_id === pageId);
+        
         insights.forEach((insight: any) => {
-          allDates.add(insight.recorded_date);
+          const existingDate = chartResults.find(r => r.date === insight.recorded_date);
+          if (existingDate) {
+            existingDate[pageId] = insight.followers_count || 0;
+          } else {
+            chartResults.push({
+              date: insight.recorded_date,
+              [pageId]: insight.followers_count || 0
+            });
+          }
         });
-      });
-
-      const sortedDates = Array.from(allDates).sort();
-
-      const chartData = sortedDates.map(date => {
-        const dataPoint: any = {
-          date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        };
-
-        selectedPages.forEach(pageId => {
-          const pageInsights = insightsData.find(d => d.pageId === pageId)?.insights || [];
-          const insight = pageInsights.find((i: any) => i.recorded_date === date);
-          dataPoint[pageId] = insight?.followers_count || 0;
-        });
-
-        return dataPoint;
-      });
-
-      const pages = selectedPages.map((pageId, idx) => {
-        const page = trackedPages.find(p => p.page_id === pageId);
-        const colors = ['#1E5AA8', '#22C55E', '#EF4444'];
-        return {
-          id: pageId,
-          name: page?.page_name || '',
-          color: colors[idx] || '#888',
-        };
-      });
-
-      setCompareData({
-        metrics,
-        chartData,
-        pages,
-      });
+      }
+      setChartData(chartResults);
     } catch (error) {
       console.error('Error loading compare data:', error);
       toast.error('Failed to load comparison data');
@@ -174,10 +137,6 @@ export default function ComparePage() {
       }
     }
   };
-
-  const bestPerformer = compareData?.metrics.reduce((best: any, current: any) => 
-    current.engagementRate > best.engagementRate ? current : best
-  );
 
   if (loading) {
     return (
@@ -264,13 +223,31 @@ export default function ComparePage() {
 
       {compareData && (
         <div className="space-y-6">
-          <CompareTable pages={compareData.metrics} />
-          
-          {compareData.chartData.length > 0 && (
-            <CompareChart data={compareData.chartData} pages={compareData.pages} />
+          <CompareTable pages={compareData} />
+          {chartData.length > 0 && (
+            <CompareChart 
+              data={chartData}
+              pages={selectedPages.map((pageId, idx) => {
+                const page = trackedPages.find(p => p.page_id === pageId);
+                const colors = ['#1E5AA8', '#22C55E', '#EF4444'];
+                return {
+                  id: pageId,
+                  name: page?.page_name || '',
+                  color: colors[idx] || '#888',
+                };
+              })}
+            />
           )}
         </div>
       )}
     </div>
+  );
+}
+
+export default function ComparePage() {
+  return (
+    <AppLayout>
+      <CompareContent />
+    </AppLayout>
   );
 }
