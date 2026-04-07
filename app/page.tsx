@@ -16,9 +16,10 @@ function HomePageContent() {
   useEffect(() => {
     setMounted(true);
     // Bypass authentication and go directly to dashboard
-    setTimeout(() => {
-      router.push('/dashboard');
-    }, 1000);
+    // setTimeout(() => {
+    //   router.push('/dashboard');
+    // }, 1000);
+    router.push('/login');
   }, []);
 
   if (!mounted || loading) {

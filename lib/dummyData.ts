@@ -449,3 +449,12 @@ export const dummyInsights = [
     followers_count: 82500000
   }
 ];
+
+
+export const brands = [
+  { name: "Coca-Cola", code: "cocacolaindia", category: "Beverages" },
+  { name: "Pepsi", code: "pepsiindia", category: "Beverages" },
+  { name: "Nike", code: "nike", category: "Sports" },
+  { name: "Apple", code: "apple", category: "Technology" },
+  { name: "McDonald's", code: "mcdonalds", category: "Food" },
+];

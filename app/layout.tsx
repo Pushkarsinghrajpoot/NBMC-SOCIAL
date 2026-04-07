@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "NBMC Analytics - Facebook Page Analytics & Insights",
@@ -15,6 +16,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
+        <Toaster position="bottom-right" />
       </body>
     </html>
   );
